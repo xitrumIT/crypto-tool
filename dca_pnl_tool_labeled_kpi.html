@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DCA & PNL • Responsive + One-time Notification</title>
+<style>
+/* ===== GLOBAL ===== */
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --wrap: 1280px;
+  --right: clamp(360px, 34vw, 520px); /* cột phải cố định, không tràn */
+  --bg:#0b1220; --card:#111827; --text:#e5e7eb; --muted:#94a3b8;
+  --border:#1f2937; --table:#1e293b; --primary:#3b82f6; --primary-600:#2563eb;
+  --success:#22c55e; --danger:#ef4444; --h:42px; --r:14px;
+}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+.wrap{width:min(100%,var(--wrap));margin:28px auto;padding-inline:clamp(12px,2vw,16px)}
+.topbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.title{font-size:clamp(20px,2.2vw,26px);font-weight:800}
+.chip{height:32px;display:inline-flex;align-items:center;gap:8px;padding:0 12px;border-radius:12px;border:1px solid rgba(14,165,233,.25);background:rgba(14,165,233,.15);color:#7dd3fc;font-size:12px;font-weight:800;white-space:nowrap}
+.spacer{flex:1 1 auto;min-width:0}
+.btn{appearance:none;border:0;cursor:pointer;font-weight:800;color:#fff;background:var(--primary);height:var(--h);padding:0 14px;border-radius:12px;white-space:nowrap}
+.btn:hover{background:var(--primary-600)}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--table)}
+.btn-danger{background:var(--danger)}
+.btn-sm{height:34px;padding:0 12px;border-radius:10px;font-size:13px}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 10px 30px rgba(2,6,23,.4);overflow:visible;max-width:100%}
+.section{padding:14px 16px}
+.card-title{padding:14px 16px;border-bottom:1px solid var(--border);font-weight:800;color:#cbd5e1;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+
+label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+input[type=text],input[type=number],select{
+  width:100%;background:#0b1220;color:var(--text);border:1px solid var(--table);
+  border-radius:10px;outline:none;min-width:0;height:var(--h);padding:0 12px
+}
+input::placeholder{color:#64748b}
+.divider{height:1px;background:var(--border);margin:14px 0}
+
+/* Spacing giữa các session */
+.session { margin-top: 20px; }
+.session:first-child { margin-top: 0; }  /* giữ session đầu sát header */
+
+/* ===== LAYOUT ===== */
+.grid-50{display:grid;grid-template-columns:minmax(0,1fr) var(--right);gap:20px;align-items:start}
+.left-col,.right-col{min-width:0}
+.right-col{position:sticky;top:16px;align-self:start;display:flex;flex-direction:column;gap:12px;min-width:0;z-index:2;width:var(--right)}
+@media (max-width:1100px){.grid-50{grid-template-columns:1fr}.right-col{position:static;width:auto}}
+
+/* groups */
+.left-col .group{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.left-col .group-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:end}
+@media (max-width:900px){.left-col .group{grid-template-columns:repeat(2,1fr)}.left-col .group-2{grid-template-columns:1fr}}
+.row-inline{display:flex;gap:12px;align-items:center;flex-wrap:wrap;min-width:0}
+.badge-toggle{display:flex;gap:8px;align-items:center;font-size:13px;color:#cbd5e1}
+.badge-toggle input{width:18px;height:18px}
+
+/* ===== TABLES ===== */
+.table{width:100%;border-collapse:collapse;max-width:100%}
+.table th,.table td{padding:10px;border-bottom:1px solid var(--table);text-align:left;font-size:14px;white-space:nowrap}
+.table th{color:#cbd5e1;background:#0b1220}
+
+/* DCA table */
+.table.dca td:first-child,.table.dca th:first-child{width:48px;text-align:center}
+.table.dca td:last-child,.table.dca th:last-child{width:80px;text-align:center}
+
+/* TP/SL table (không wrap cột 'Mốc') */
+.tp-table{table-layout:auto}
+.tp-table th:nth-child(1),.tp-table td:nth-child(1){width:92px;white-space:nowrap}
+.tp-table th:nth-child(3),.tp-table td:nth-child(3),
+.tp-table th:nth-child(4),.tp-table td:nth-child(4){text-align:right}
+
+/* ===== KPI / SUMMARY ===== */
+.kpi{background:#0b1220;border:1px solid var(--table);border-radius:12px;padding:14px}
+.kv-row{display:flex;gap:clamp(12px,2vw,24px);align-items:center;flex-wrap:wrap;min-width:0}
+.kv{display:flex;gap:8px;align-items:baseline;min-width:0}
+.kv .k{font-size:12px;color:#a3b2c5;white-space:nowrap}
+.kv .v{font-size:clamp(16px,2.3vw,24px);font-weight:900;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.price-up .v{color:var(--success)} .price-down .v{color:var(--danger)}
+.hist{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.tag{font-size:12px;padding:2px 6px;border-radius:8px;border:1px solid var(--table);background:#0b1220;color:#cbd5e1}
+.tag.up{color:var(--success);border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.08)}
+.tag.down{color:var(--danger);border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.08)}
+
+/* Summary 12 cột: 4-4-4 & 6-6 */
+.hstats{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:10px}
+.stat{background:#0b1220;border:1px solid var(--table);border-radius:12px;padding:12px;min-width:0}
+.stat .k{font-size:12px;color:#a3b2c5;margin-bottom:4px;white-space:nowrap}
+.stat .v{font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.span4{grid-column:span 4}.span6{grid-column:span 6}
+.pnl-green{color:var(--success)} .pnl-red{color:var(--danger)}
+@media (max-width:900px){.hstats{grid-template-columns:repeat(6,1fr)}.span4,.span6{grid-column:span 6}}
+
+/* TP/SL inputs: 4 -> 2 (50%) -> 1 */
+.tprow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:1100px){.tprow{grid-template-columns:repeat(2,minmax(0,1fr))}} /* 50% khung trái */
+@media (max-width:560px){.tprow{grid-template-columns:1fr}}
+.hit-tp{outline:2px solid rgba(34,197,94,.6);background:rgba(34,197,94,.08)}
+.hit-sl{outline:2px solid rgba(239,68,68,.6);background:rgba(239,68,68,.08)}
+.row-hit{background:rgba(34,197,94,.08);color:var(--success);font-weight:800}
+.row-sl{background:rgba(239,68,68,.08);color:var(--danger);font-weight:800}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="title">DCA & PNL Calculator</div>
+    <span class="chip">Spot/Perp • Binance + Bitget price feed</span>
+    <div class="spacer"></div>
+    <button class="btn" id="btn-new">➕ Thêm session</button>
+  </div>
+
+  <div id="sessions"></div>
+</div>
+
+<script>
+/* ===== Helpers ===== */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const toNum=v=>{const n=parseFloat(v);return Number.isFinite(n)?n:NaN}
+const fmt=(n,d=2)=>Number.isFinite(n)?n.toFixed(d):'—';
+const trimZeros=s=>{if(typeof s!=='string')return s+'';if(!s.includes('.'))return s;s=s.replace(/0+$/,'');if(s.endsWith('.'))s=s.slice(0,-1);return s}
+const timers=new Map(), priceHist=new Map(), streaks=new Map(), levelAlerted=new Map(); let SID=0;
+
+/* ===== Notifications: 1 lần hỏi, nhớ bằng localStorage ===== */
+const NOTIF_KEY='dca_notif_permission_asked';
+const isNotifSupported=()=>('Notification'in window);
+const isNotifGranted=()=>isNotifSupported() && Notification.permission==='granted';
+const canAskNotif=()=>isNotifSupported() && Notification.permission==='default' && localStorage.getItem(NOTIF_KEY)!=='yes';
+async function askNotifOnce(){
+  if(!isNotifSupported()) return false;
+  if(Notification.permission==='granted'){ localStorage.setItem(NOTIF_KEY,'yes'); return true; }
+  if(Notification.permission==='denied'){  localStorage.setItem(NOTIF_KEY,'yes'); return false; }
+  if(!canAskNotif()) return isNotifGranted();
+  try{
+    const p=await Notification.requestPermission();
+    localStorage.setItem(NOTIF_KEY,'yes');
+    return p==='granted';
+  }catch{ return false }
+}
+function notifyNow(title,body){ if(isNotifGranted()) new Notification(title,{body}) }
+
+/* ===== Fast fetch (timeout) ===== */
+async function fetchJSON(url, timeout=1200){
+  const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(), timeout);
+  try{ const r=await fetch(url,{signal:ctl.signal,cache:'no-store'}); if(!r.ok) throw new Error(r.status); return await r.json(); }
+  finally{ clearTimeout(t) }
+}
+
+/* ===== Price APIs ===== */
+const pickPrice=o=>o?.lastPr??o?.last??o?.price??o?.close??o?.askPrice??o?.bidPrice??o?.markPrice;
+async function fetchBinanceSpot(sym){try{const j=await fetchJSON(`https://api.binance.com/api/v3/ticker/price?symbol=${sym}`);if(j?.price)return{priceStr:j.price,venue:'Binance Spot',symbol:sym};}catch{}const j2=await fetchJSON(`https://api.binance.com/api/v3/ticker/bookTicker?symbol=${sym}`);const p=pickPrice(j2);if(!p)throw new Error('binance-spot');return{priceStr:p,venue:'Binance Spot',symbol:sym};}
+async function fetchBinanceFut(sym){try{const j=await fetchJSON(`https://fapi.binance.com/fapi/v1/ticker/price?symbol=${sym}`);if(j?.price)return{priceStr:j.price,venue:'Binance Futures',symbol:sym};}catch{}const j2=await fetchJSON(`https://fapi.binance.com/fapi/v1/ticker/bookTicker?symbol=${sym}`);const p=pickPrice(j2);if(!p)throw new Error('binance-fut');return{priceStr:p,venue:'Binance Futures',symbol:sym};}
+async function fetchBitgetSpot(sym){try{const j=await fetchJSON(`https://api.bitget.com/api/v2/spot/market/tickers?symbol=${sym}`);const di=Array.isArray(j?.data)?j.data[0]:j?.data;const p=pickPrice(di);if(p)return{priceStr:p,venue:'Bitget Spot',symbol:di?.symbol||sym};}catch{}const j2=await fetchJSON(`https://api.bitget.com/api/spot/v1/market/ticker?symbol=${sym}`);const di=Array.isArray(j2?.data)?j2.data[0]:j2?.data;const p=pickPrice(di);if(!p)throw new Error('bitget-spot');return{priceStr:p,venue:'Bitget Spot',symbol:di?.symbol||sym};}
+async function fetchBitgetFut(sym){const mix=sym.endsWith('_UMCBL')?sym:(sym.replace(/_UMCBL$/,'')+'_UMCBL');try{const j=await fetchJSON(`https://api.bitget.com/api/v2/mix/market/ticker?symbol=${mix}`);const p=pickPrice(j?.data);if(p)return{priceStr:p,venue:'Bitget Futures',symbol:j?.data?.symbol||mix};}catch{}const j2=await fetchJSON(`https://api.bitget.com/api/mix/v1/market/ticker?symbol=${mix}`);const p=pickPrice(j2?.data);if(!p)throw new Error('bitget-fut');return{priceStr:p,venue:'Bitget Futures',symbol:j?.data?.symbol||mix};}
+function baseSyms(raw){const s=raw.trim().toUpperCase();return (s.endsWith('USDT')||s.endsWith('FDUSD')||s.endsWith('USDC'))?[s]:[s+'USDT',s+'FDUSD',s+'USDC'];}
+async function fetchByProvider(provider,input){
+  const bases=baseSyms(input);
+  if(provider==='bitget'){
+    for(const sym of bases){ if(!sym.endsWith('USDT')) continue; try{return await fetchBitgetFut(sym)}catch{} }
+    for(const sym of bases){ try{return await fetchBitgetSpot(sym)}catch{} }
+    throw new Error('NOT_FOUND_BITGET');
+  }
+  if(provider==='binance'){
+    for(const sym of bases){ try{return await fetchBinanceSpot(sym)}catch{} }
+    for(const sym of bases){ if(!sym.endsWith('USDT')) continue; try{return await fetchBinanceFut(sym)}catch{} }
+    throw new Error('NOT_FOUND_BINANCE');
+  }
+  return Promise.any([
+    (async()=>{try{return await fetchByProvider('bitget',input)}catch(e){throw e}})(),
+    (async()=>{try{return await fetchByProvider('binance',input)}catch(e){throw e}})()
+  ]);
+}
+
+/* ===== Session UI ===== */
+function makeSession({coin='PUMPUSDT',side='long'}={}) {
+  const id='S'+(++SID);
+  const html=`
+  <div class="card session" data-id="${id}">
+    <div class="card-title">
+      <span>Session</span>
+      <button class="btn btn-ghost btn-sm" data-act="remove" data-id="${id}">🗑 Xoá session</button>
+    </div>
+    <div class="section grid-50">
+      <!-- LEFT -->
+      <div class="left-col">
+        <div class="group">
+          <div><label>Mã coin</label><input id="coin-${id}" type="text" value="${coin}" placeholder="VD: PUMP, PUMPUSDT, BTCUSDT"/></div>
+          <div><label>Dạng lệnh</label><select id="side-${id}"><option value="long" ${side==='long'?'selected':''}>Long</option><option value="short" ${side==='short'?'selected':''}>Short</option></select></div>
+          <div><label>Nhà cung cấp</label><select id="provider-${id}"><option value="bitget" selected>Bitget</option><option value="binance">Binance</option><option value="auto">Auto</option></select></div>
+        </div>
+
+        <div class="group-2">
+          <div>
+            <label>Streak (N lần) • Bật thông báo</label>
+            <div class="row-inline">
+              <input id="streakN-${id}" type="number" min="2" value="5" style="max-width:140px"/>
+              <label class="badge-toggle"><input id="streakOn-${id}" type="checkbox"/><span>Bật</span></label>
+            </div>
+          </div>
+          <div>
+            <label>Tự động cập nhật (giây)</label>
+            <div class="row-inline">
+              <input id="int-${id}" type="number" min="5" value="10" style="max-width:100px"/>
+              <button class="btn btn-ghost btn-sm" data-act="toggle" data-id="${id}">▶ Bật</button>
+              <button class="btn btn-ghost btn-sm" data-act="refresh" data-id="${id}">⟲ Lấy giá</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <div class="card-title" style="padding:0;border:0;color:#cbd5e1">Danh sách lệnh (DCA)</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-ghost btn-sm" data-act="addRow" data-id="${id}">➕ Thêm DCA</button>
+              <button class="btn btn-danger btn-sm" data-act="clearRows" data-id="${id}">🗑 Xoá hết</button>
+            </div>
+          </div>
+          <br/>
+          <table class="table dca"><thead><tr><th>#</th><th>Entry</th><th>Vốn USDT</th><th>Đòn bẩy</th><th>Xoá</th></tr></thead><tbody id="body-${id}"></tbody></table>
+        </div>
+
+        <div class="divider"></div>
+        <div style="display:flex;justify-content:center"><button class="btn" data-act="calc" data-id="${id}">🔄 Lấy giá mới & Tính PNL</button></div>
+        <div class="divider"></div>
+
+        <div>
+          <div class="tprow">
+            <div><label>TP 1 (giá hoặc %)</label><input id="tp1-${id}" type="text" placeholder="VD: 0.0046 hoặc 5%"/></div>
+            <div><label>TP 2 (giá hoặc %)</label><input id="tp2-${id}" type="text" placeholder="VD: 0.0047 hoặc 10%"/></div>
+            <div><label>TP 3 (giá hoặc %)</label><input id="tp3-${id}" type="text" placeholder="VD: 0.0048 hoặc 15%"/></div>
+            <div><label>SL (giá hoặc %)</label><input id="sl-${id}" type="text" placeholder="VD: 5%"/></div>
+          </div>
+          <div style="display:flex;justify-content:center;margin-top:10px"><button class="btn btn-sm" data-act="calc-tpsl" data-id="${id}">📈 Tính lợi/lỗ theo TP/SL</button></div>
+        </div>
+
+        <div id="msg-${id}" class="note" style="margin-top:6px;color:#9ca3af"></div>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="right-col">
+        <div class="kpi" id="kpi-${id}">
+          <div class="kv-row">
+            <div class="kv"><div class="k">Giá:</div><div id="price-${id}" class="v">—</div></div>
+            <div class="kv"><div class="k">Nguồn:</div><div id="venue-${id}" class="v" style="font-size:clamp(12px,1.6vw,16px)">—</div></div>
+          </div>
+          <div id="hist-${id}" class="hist"></div>
+        </div>
+        <div id="sum-${id}"></div>
+        <div id="tpsl-${id}"></div>
+      </div>
+    </div>
+  </div>`;
+  $('#sessions').insertAdjacentHTML('beforeend',html);
+  addRow(id,{removable:false});
+
+  // 🔔 Chỉ hỏi quyền khi bật toggle – và chỉ 1 lần
+  $('#streakOn-'+id).addEventListener('change', async (e)=>{
+    if(!e.target.checked) return;
+    const ok = await askNotifOnce();
+    if(!ok && !isNotifGranted()){
+      e.target.checked=false;
+      const msg=$('#msg-'+id);
+      msg.textContent='Không thể bật thông báo. Hãy mở trang bằng https/localhost và cấp quyền trong biểu tượng ổ khoá.';
+    }
+  });
+
+  refreshPrice(id);
+}
+
+/* ===== DCA rows ===== */
+function addRow(id,{entry='',cap='',lev='',removable=true}={}) {
+  const tb=$('#body-'+id); const tr=document.createElement('tr');
+  tr.innerHTML=`<td class="idx">#</td>
+  <td><input name="entry" type="number" step="any" placeholder="VD: 0.0046" value="${entry}"/></td>
+  <td><input name="cap" type="number" step="any" placeholder="VD: 30" value="${cap}"/></td>
+  <td><input name="lev" type="number" step="any" placeholder="VD: 1 (Spot) / 20" value="${lev}"/></td>
+  <td>${removable?`<button class="btn btn-danger btn-sm" data-act="rmRow">X</button>`:'—'}</td>`;
+  tb.appendChild(tr); renumber(id);
+}
+function renumber(id){ $$('#body-'+id+' tr').forEach((tr,i)=>tr.querySelector('.idx').textContent=i+1) }
+function resetRows(id){ $('#body-'+id).innerHTML=''; addRow(id,{removable:false}) }
+function parseRows(id){
+  const rows=[]; $$('#body-'+id+' tr').forEach(tr=>{
+    const e=toNum(tr.querySelector('input[name="entry"]').value);
+    const c=toNum(tr.querySelector('input[name="cap"]').value);
+    const l=toNum(tr.querySelector('input[name="lev"]').value||'1');
+    if(Number.isFinite(e)&&e>0&&Number.isFinite(c)&&c>0&&Number.isFinite(l)&&l>0) rows.push({entry:e,cap:c,lev:l});
+  }); return rows;
+}
+
+/* ===== Price render / history / streak / level alerts ===== */
+function pushHistory(id,p){
+  if(!Number.isFinite(p))return; const a=priceHist.get(id)||[]; a.push(p); while(a.length>4)a.shift(); priceHist.set(id,a);
+  const box=$('#hist-'+id); box.innerHTML='';
+  a.forEach((v,i)=>{ const prev=i? a[i-1]:a[i]; const cls=v>prev?'up':v<prev?'down':''; const t=document.createElement('span');
+    t.className='tag '+cls; t.textContent=trimZeros(String(v)); box.appendChild(t); });
+}
+function updateStreak(id,prev,cur){
+  if(!Number.isFinite(prev)||!Number.isFinite(cur))return;
+  const S=streaks.get(id)||{up:0,down:0,last:''};
+  if(cur>prev){S.up++;S.down=0;S.last='up'} else if(cur<prev){S.down++;S.up=0;S.last='down'}
+  const need=parseInt($('#streakN-'+id).value||'5',10); const on=$('#streakOn-'+id).checked;
+  if(on && isNotifGranted()){
+    if(S.up>=need && S.last==='up') notifyNow('🚀 Giá tăng liên tiếp',`${$('#coin-'+id).value} • ${S.up} lần`);
+    if(S.down>=need && S.last==='down') notifyNow('📉 Giá giảm liên tiếp',`${$('#coin-'+id).value} • ${S.down} lần`);
+  }
+  streaks.set(id,S);
+}
+function setAlerted(id,key,hit){ const G=levelAlerted.get(id)||{}; const prev=!!G[key]; G[key]=!!hit; levelAlerted.set(id,G); return {prev,now:G[key]}; }
+
+/* ===== Summary (3+2) ===== */
+function renderSummary(id,core,p){
+  const pnlCell=p.have?`<span class="${p.pnl>=0?'pnl-green':'pnl-red'}">${fmt(p.pnl,2)} USDT (${fmt(p.roi,2)}%)</span>`:'—';
+  $('#sum-'+id).innerHTML=`
+    <div class="hstats">
+      <div class="stat span4"><div class="k">Số lệnh</div><div class="v">${core.orders}</div></div>
+      <div class="stat span4"><div class="k">Tổng khối lượng coin</div><div class="v">${fmt(core.qty,6)}</div></div>
+      <div class="stat span4"><div class="k">Entry TB</div><div class="v" id="avg-${id}">${fmt(core.avg,8)}</div></div>
+      <div class="stat span6"><div class="k">Tổng vốn</div><div class="v">${fmt(core.total,2)} USDT</div></div>
+      <div class="stat span6"><div class="k">Lãi hiện tại</div><div class="v" id="pnl-${id}">${pnlCell}</div></div>
+    </div>`;
+}
+
+/* ===== Price & Auto ===== */
+async function refreshPrice(id){
+  const coin=$('#coin-'+id).value, provider=$('#provider-'+id).value, kpi=$('#kpi-'+id), el=$('#price-'+id);
+  try{
+    const {priceStr,venue,symbol}=await fetchByProvider(provider,coin);
+    const prev=toNum(el.dataset.prev||''); const cur=parseFloat(priceStr);
+    el.textContent=trimZeros(priceStr)+' USDT'; el.dataset.prev=Number.isFinite(cur)?cur:'';
+    $('#venue-'+id).textContent=`${venue} • ${symbol}`;
+    kpi.classList.remove('price-up','price-down');
+    if(Number.isFinite(prev)&&Number.isFinite(cur)){ if(cur>prev)kpi.classList.add('price-up'); else if(cur<prev)kpi.classList.add('price-down'); }
+    pushHistory(id,cur); checkTpSlHits(id,cur); updateStreak(id,prev,cur);
+    const rows=parseRows(id); if(rows.length>0){ const side=$('#side-'+id).value; const core=calcCore(rows); const pnl=calcPnl(side,cur,core.avg,core.qty,core.total); renderSummary(id,core,pnl); }
+    return cur;
+  }catch(e){ el.textContent='—'; $('#venue-'+id).textContent='Không tìm thấy'; return NaN }
+}
+function startAuto(id){ const sec=Math.max(5, toNum($('#int-'+id).value)||10); stopAuto(id); const btn=$(`[data-act="toggle"][data-id="${id}"]`); btn.textContent='⏸ Tắt'; btn.dataset.on='1'; timers.set(id,setInterval(()=>refreshPrice(id),sec*1000)); refreshPrice(id); }
+function stopAuto(id){ const t=timers.get(id); if(t){clearInterval(t);timers.delete(id)} const btn=$(`[data-act="toggle"][data-id="${id}"]`); if(btn){btn.textContent='▶ Bật';btn.dataset.on='0'} }
+
+/* ===== Core & TP/SL ===== */
+function calcCore(rows){const qty=rows.reduce((s,o)=>s+(o.cap*o.lev/o.entry),0);const total=rows.reduce((s,o)=>s+o.cap,0);const w=rows.reduce((s,o)=>s+(o.cap*o.lev),0);const avg=qty>0?(w/qty):NaN;return{qty,total,avg,orders:rows.length}}
+function calcPnl(side,price,avg,qty,total){if(!Number.isFinite(price)||!Number.isFinite(avg)||qty<=0)return{have:false};const pnl=(side==='long'?(price-avg):(avg-price))*qty;const roi=total>0?(pnl/total)*100:NaN;return{have:true,pnl,roi}}
+
+function parseTarget(raw,entry,side,kind){
+  if(raw==null) return {price:NaN,wasPct:false};
+  let s=String(raw).trim().toLowerCase().replace(/\s+/g,'').replace(/％/g,'%');
+  const isPct=/%|pct|percent|phantram|phầntrăm/.test(s);
+  if(isPct){
+    const num=parseFloat(s.replace(/[^0-9.+-]/g,'')); if(!Number.isFinite(num)) return {price:NaN,wasPct:true};
+    const r=num/100;
+    const price=(kind==='tp')?(side==='long'?entry*(1+r):entry*(1-r)):(side==='long'?entry*(1-r):entry*(1+r));
+    return {price,wasPct:true,pct:r};
+  }
+  const v=parseFloat(s); return {price:Number.isFinite(v)?v:NaN,wasPct:false};
+}
+function renderTpTable(id,side,core,targets,sl){
+  let rows=[];
+  targets.forEach((o,i)=>{if(!Number.isFinite(o.price))return;const r=calcPnl(side,o.price,core.avg,core.qty,core.total);
+    rows.push(`<tr id="tp-row-${id}-${i+1}"><td>TP&nbsp;${i+1}</td><td>${fmt(o.price,8)}</td><td class="${r.pnl>=0?'pnl-green':'pnl-red'}">${fmt(r.pnl,2)} USDT</td><td class="${r.pnl>=0?'pnl-green':'pnl-red'}">${fmt(r.roi,2)}%</td></tr>`);});
+  if(Number.isFinite(sl?.price)){const s=calcPnl(side,sl.price,core.avg,core.qty,core.total);
+    rows.push(`<tr id="sl-row-${id}"><td>SL</td><td>${fmt(sl.price,8)}</td><td class="${s.pnl>=0?'pnl-green':'pnl-red'}">${fmt(s.pnl,2)} USDT</td><td class="${s.pnl>=0?'pnl-green':'pnl-red'}">${fmt(s.roi,2)}%</td></tr>`);}
+  $('#tpsl-'+id).innerHTML = rows.length?`<table class="table tp-table"><thead><tr><th>Mốc</th><th>Giá</th><th>PNL (USDT)</th><th>ROI</th></tr></thead><tbody>${rows.join('')}</tbody></table>`:'';
+  const cur=toNum($('#price-'+id).dataset.prev||''); if(Number.isFinite(cur)) checkTpSlHits(id,cur);
+}
+const isTpHit=(side,price,tp)=>Number.isFinite(tp)&&(side==='long'?price>=tp:price<=tp);
+const isSlHit=(side,price,sl)=>Number.isFinite(sl)&&(side==='long'?price<=sl:price>=sl);
+function checkTpSlHits(id,price){
+  const side=$('#side-'+id).value; const rows=parseRows(id); const core=calcCore(rows); if(!Number.isFinite(core.avg))return;
+  const t1=parseTarget($('#tp1-'+id).value,core.avg,side,'tp').price;
+  const t2=parseTarget($('#tp2-'+id).value,core.avg,side,'tp').price;
+  const t3=parseTarget($('#tp3-'+id).value,core.avg,side,'tp').price;
+  const sl=parseTarget($('#sl-'+id).value,core.avg,side,'sl').price;
+
+  [$('#tp1-'+id),$('#tp2-'+id),$('#tp3-'+id)].forEach(el=>el?.classList.remove('hit-tp')); $('#sl-'+id)?.classList.remove('hit-sl');
+  for(let i=1;i<=3;i++){$('#tp-row-'+id+'-'+i)?.classList.remove('row-hit')} $('#sl-row-'+id)?.classList.remove('row-sl');
+
+  const hits={ tp1:isTpHit(side,price,t1), tp2:isTpHit(side,price,t2), tp3:isTpHit(side,price,t3), sl:isSlHit(side,price,sl) };
+
+  [t1,t2,t3].forEach((tp,i)=>{ if(isTpHit(side,price,tp)){[$('#tp1-'+id),$('#tp2-'+id),$('#tp3-'+id)][i]?.classList.add('hit-tp'); $('#tp-row-'+id+'-'+(i+1))?.classList.add('row-hit'); }});
+  if(hits.sl){ $('#sl-'+id)?.classList.add('hit-sl'); $('#sl-row-'+id)?.classList.add('row-sl'); }
+
+  // 🔔 Thông báo 1 lần/mốc khi đã bật và đã granted
+  if($('#streakOn-'+id).checked && isNotifGranted()){
+    for(const [key, ok] of Object.entries(hits)){
+      const ch=setAlerted(id,key,ok);
+      if(ok && !ch.prev){
+        const sym=$('#coin-'+id).value;
+        const title = key==='sl' ? '🛑 Cán SL' : `✅ Cán ${key.toUpperCase()}`;
+        notifyNow(title, `${sym} • Giá: ${trimZeros(String(price))}`);
+      }
+      if(!ok && ch.prev) setAlerted(id,key,false);
+    }
+  }
+}
+
+/* ===== Events ===== */
+$('#btn-new').addEventListener('click',()=>makeSession());
+document.addEventListener('click',async e=>{
+  const btn=e.target.closest('button'); if(!btn) return;
+  const id=btn.dataset.id || btn.closest('.session')?.dataset.id; const act=btn.dataset.act;
+  if(!id||!act) return;
+
+  if(act==='remove'){ btn.closest('.session').remove(); return; }
+  if(act==='addRow'){ addRow(id); return; }
+  if(act==='clearRows'){ resetRows(id); return; }
+  if(act==='rmRow'){ btn.closest('tr').remove(); renumber(id); return; }
+
+  if(act==='toggle'){ const on=btn.dataset.on==='1'; if(on) stopAuto(id); else startAuto(id); return; }
+  if(act==='refresh'){ await refreshPrice(id); return; }
+
+  if(act==='calc'){
+    const rows=parseRows(id); const msg=$('#msg-'+id); msg.textContent='';
+    if(rows.length===0){ $('#sum-'+id).innerHTML=''; $('#tpsl-'+id).innerHTML=''; msg.innerHTML='<span class="error">Cần ít nhất 1 dòng Entry/Vốn/Đòn bẩy.</span>'; return; }
+    const side=$('#side-'+id).value; const price=await refreshPrice(id);
+    const core=calcCore(rows); const pnl=calcPnl(side,price,core.avg,core.qty,core.total); renderSummary(id,core,pnl);
+    return;
+  }
+
+  if(act==='calc-tpsl'){
+    const rows=parseRows(id); const msg=$('#msg-'+id); msg.textContent='';
+    if(rows.length===0){ $('#tpsl-'+id).innerHTML=''; msg.innerHTML='Hãy nhập TP1/TP2/TP3 hoặc SL (giá hoặc %).'; return; }
+    await refreshPrice(id);
+    const side=$('#side-'+id).value; const core=calcCore(rows);
+    const tps=[parseTarget($('#tp1-'+id).value,core.avg,side,'tp'),parseTarget($('#tp2-'+id).value,core.avg,side,'tp'),parseTarget($('#tp3-'+id).value,core.avg,side,'tp')];
+    const sl=parseTarget($('#sl-'+id).value,core.avg,side,'sl');
+    renderTpTable(id,side,core,tps,sl);
+  }
+});
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter')return;
+  const s=e.target.closest('.session'); if(!s)return;
+  e.preventDefault(); s.querySelector('button[data-act="calc"]')?.click();
+});
+
+/* ===== Init ===== */
+makeSession();
+</script>
+</body>
+</html>
