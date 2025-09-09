@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>DCA & PNL • Responsive + One-time Notification</title>
+<title>DCA & PNL • TradingView full-width + one-time notif</title>
 <style>
 /* ===== GLOBAL ===== */
 *,*::before,*::after{box-sizing:border-box}
 :root{
   --wrap: 1280px;
-  --right: clamp(360px, 34vw, 520px); /* cột phải cố định, không tràn */
+  --right: clamp(360px, 34vw, 520px);
   --bg:#0b1220; --card:#111827; --text:#e5e7eb; --muted:#94a3b8;
   --border:#1f2937; --table:#1e293b; --primary:#3b82f6; --primary-600:#2563eb;
   --success:#22c55e; --danger:#ef4444; --h:42px; --r:14px;
@@ -30,6 +30,10 @@ html,body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-se
 .section{padding:14px 16px}
 .card-title{padding:14px 16px;border-bottom:1px solid var(--border);font-weight:800;color:#cbd5e1;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 
+/* spacing giữa các session */
+.session{margin-top:20px}
+.session:first-child{margin-top:0}
+
 label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
 input[type=text],input[type=number],select{
   width:100%;background:#0b1220;color:var(--text);border:1px solid var(--table);
@@ -37,10 +41,6 @@ input[type=text],input[type=number],select{
 }
 input::placeholder{color:#64748b}
 .divider{height:1px;background:var(--border);margin:14px 0}
-
-/* Spacing giữa các session */
-.session { margin-top: 20px; }
-.session:first-child { margin-top: 0; }  /* giữ session đầu sát header */
 
 /* ===== LAYOUT ===== */
 .grid-50{display:grid;grid-template-columns:minmax(0,1fr) var(--right);gap:20px;align-items:start}
@@ -94,12 +94,26 @@ input::placeholder{color:#64748b}
 
 /* TP/SL inputs: 4 -> 2 (50%) -> 1 */
 .tprow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-@media (max-width:1100px){.tprow{grid-template-columns:repeat(2,minmax(0,1fr))}} /* 50% khung trái */
+@media (max-width:1100px){.tprow{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.tprow{grid-template-columns:1fr}}
 .hit-tp{outline:2px solid rgba(34,197,94,.6);background:rgba(34,197,94,.08)}
 .hit-sl{outline:2px solid rgba(239,68,68,.6);background:rgba(239,68,68,.08)}
 .row-hit{background:rgba(34,197,94,.08);color:var(--success);font-weight:800}
 .row-sl{background:rgba(239,68,68,.08);color:var(--danger);font-weight:800}
+
+/* ===== TradingView collapsible (full width, bottom) ===== */
+.tv-wrap{border:1px solid var(--table);border-radius:12px;background:#0b1220}
+.tv-wrap > summary{
+  cursor:pointer;list-style:none;padding:12px 14px;font-weight:800;color:#cbd5e1;
+  border-bottom:1px solid var(--table);display:flex;align-items:center;gap:10px
+}
+.tv-wrap > summary::-webkit-details-marker{display:none}
+.tv-box{width:100%}
+.tv-note{font-size:12px;color:#94a3b8;padding:8px 14px;border-top:1px dashed var(--table)}
+/* full width & cao hơn */
+.tv-full{margin-top:8px;border-radius:12px}
+.tv-full .tv-box{width:100%;height:100%}
+@media (max-width:900px){.tv-full .tv-box{height:960px}}
 </style>
 </head>
 <body>
@@ -132,11 +146,7 @@ async function askNotifOnce(){
   if(Notification.permission==='granted'){ localStorage.setItem(NOTIF_KEY,'yes'); return true; }
   if(Notification.permission==='denied'){  localStorage.setItem(NOTIF_KEY,'yes'); return false; }
   if(!canAskNotif()) return isNotifGranted();
-  try{
-    const p=await Notification.requestPermission();
-    localStorage.setItem(NOTIF_KEY,'yes');
-    return p==='granted';
-  }catch{ return false }
+  try{ const p=await Notification.requestPermission(); localStorage.setItem(NOTIF_KEY,'yes'); return p==='granted'; }catch{ return false }
 }
 function notifyNow(title,body){ if(isNotifGranted()) new Notification(title,{body}) }
 
@@ -172,6 +182,48 @@ async function fetchByProvider(provider,input){
   ]);
 }
 
+/* ===== TradingView Loader & Builder ===== */
+let tvPromise=null;
+function loadTV(){
+  if(window.TradingView) return Promise.resolve();
+  if(tvPromise) return tvPromise;
+  tvPromise=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://s3.tradingview.com/tv.js'; s.onload=()=>res(); s.onerror=rej;
+    document.head.appendChild(s);
+  });
+  return tvPromise;
+}
+function tvSymbolFrom(provider, coin){
+  const s=coin.trim().toUpperCase();
+  const sym=(s.endsWith('USDT')||s.endsWith('USD'))?s:(s+'USDT');
+  if(provider==='bitget') return `BITGET:${sym}`;
+  if(provider==='binance') return `BINANCE:${sym}`;
+  return `BINANCE:${sym}`;
+}
+async function buildTV(id){
+  try{
+    await loadTV();
+    const provider=$('#provider-'+id).value;
+    const coin=$('#coin-'+id).value;
+    const symbol=tvSymbolFrom(provider, coin);
+    const boxId='tv-'+id;
+    const cont=$('#'+boxId);
+    cont.innerHTML='';
+    /* eslint-disable no-new */
+    new TradingView.widget({
+      width:"100%",height:"900px",symbol,interval:"15",timezone:"Etc/UTC",
+      theme:"dark",style:"1",locale:"vi_VN",toolbar_bg:"#0b1220",
+      enable_publishing:false,allow_symbol_change:false,hide_legend:false,
+      hide_side_toolbar:false,withdateranges:true,container_id:boxId,
+      studies:["MASimple@tv-basicstudies","Volume@tv-basicstudies"]
+    });
+  }catch(e){
+    const cont=$('#tv-'+id);
+    cont.innerHTML='<div class="tv-note">Không thể tải TradingView hoặc symbol không tồn tại. Thử đổi sang Binance.</div>';
+  }
+}
+
 /* ===== Session UI ===== */
 function makeSession({coin='PUMPUSDT',side='long'}={}) {
   const id='S'+(++SID);
@@ -181,6 +233,7 @@ function makeSession({coin='PUMPUSDT',side='long'}={}) {
       <span>Session</span>
       <button class="btn btn-ghost btn-sm" data-act="remove" data-id="${id}">🗑 Xoá session</button>
     </div>
+
     <div class="section grid-50">
       <!-- LEFT -->
       <div class="left-col">
@@ -250,6 +303,17 @@ function makeSession({coin='PUMPUSDT',side='long'}={}) {
         <div id="sum-${id}"></div>
         <div id="tpsl-${id}"></div>
       </div>
+    </div><!-- END .section.grid-50 -->
+
+    <!-- TradingView full width ở cuối session -->
+    <div class="section">
+      <details class="tv-wrap tv-full" id="tv-details-${id}">
+        <summary>📊 TradingView chart (mở/thu gọn)</summary>
+        <div id="tv-${id}" class="tv-box"></div>
+        <div class="tv-note">
+          Symbol lấy theo coin + nhà cung cấp. Nếu không thấy chart, thử đổi sang Binance.
+        </div>
+      </details>
     </div>
   </div>`;
   $('#sessions').insertAdjacentHTML('beforeend',html);
@@ -265,6 +329,11 @@ function makeSession({coin='PUMPUSDT',side='long'}={}) {
       msg.textContent='Không thể bật thông báo. Hãy mở trang bằng https/localhost và cấp quyền trong biểu tượng ổ khoá.';
     }
   });
+
+  // TV: build khi mở, và khi đổi coin/provider nếu đang mở
+  $('#tv-details-'+id).addEventListener('toggle', ev => { if(ev.target.open) buildTV(id); });
+  $('#coin-'+id).addEventListener('change', ()=>{ if($('#tv-details-'+id).open) buildTV(id); });
+  $('#provider-'+id).addEventListener('change', ()=>{ if($('#tv-details-'+id).open) buildTV(id); });
 
   refreshPrice(id);
 }
@@ -362,7 +431,7 @@ function renderTpTable(id,side,core,targets,sl){
   targets.forEach((o,i)=>{if(!Number.isFinite(o.price))return;const r=calcPnl(side,o.price,core.avg,core.qty,core.total);
     rows.push(`<tr id="tp-row-${id}-${i+1}"><td>TP&nbsp;${i+1}</td><td>${fmt(o.price,8)}</td><td class="${r.pnl>=0?'pnl-green':'pnl-red'}">${fmt(r.pnl,2)} USDT</td><td class="${r.pnl>=0?'pnl-green':'pnl-red'}">${fmt(r.roi,2)}%</td></tr>`);});
   if(Number.isFinite(sl?.price)){const s=calcPnl(side,sl.price,core.avg,core.qty,core.total);
-    rows.push(`<tr id="sl-row-${id}"><td>SL</td><td>${fmt(sl.price,8)}</td><td class="${s.pnl>=0?'pnl-green':'pnl-red'}">${fmt(s.pnl,2)} USDT</td><td class="${s.pnl>=0?'pnl-green':'pnl-red'}">${fmt(s.roi,2)}%</td></tr>`);}
+    rows.push(`<tr id="sl-row-${id}"><td>SL</td><td>${fmt(sl.price,8)}</td><td class="${s.pnl>=0?'pnl-green':'pnl-red'}">${fmt(s.pnl,2)} USDT</td><td class="${s.roi,2}">${fmt(s.roi,2)}%</td></tr>`.replace('${s.roi,2}',''));} // avoid template parsing bug
   $('#tpsl-'+id).innerHTML = rows.length?`<table class="table tp-table"><thead><tr><th>Mốc</th><th>Giá</th><th>PNL (USDT)</th><th>ROI</th></tr></thead><tbody>${rows.join('')}</tbody></table>`:'';
   const cur=toNum($('#price-'+id).dataset.prev||''); if(Number.isFinite(cur)) checkTpSlHits(id,cur);
 }
@@ -383,7 +452,6 @@ function checkTpSlHits(id,price){
   [t1,t2,t3].forEach((tp,i)=>{ if(isTpHit(side,price,tp)){[$('#tp1-'+id),$('#tp2-'+id),$('#tp3-'+id)][i]?.classList.add('hit-tp'); $('#tp-row-'+id+'-'+(i+1))?.classList.add('row-hit'); }});
   if(hits.sl){ $('#sl-'+id)?.classList.add('hit-sl'); $('#sl-row-'+id)?.classList.add('row-sl'); }
 
-  // 🔔 Thông báo 1 lần/mốc khi đã bật và đã granted
   if($('#streakOn-'+id).checked && isNotifGranted()){
     for(const [key, ok] of Object.entries(hits)){
       const ch=setAlerted(id,key,ok);
